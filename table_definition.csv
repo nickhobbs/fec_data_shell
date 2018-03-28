@@ -1,0 +1,6 @@
+data_file,data_delimiter,headerfile,header_delimiter,table_name
+data/indiv18/by_date/itcont_2018_20171229_52010120.txt,|,data/indiv_header_file.csv,",",individual_contributions
+data/indiv18/by_date/itcont_2018_20171101_20171228.txt,|,data/indiv_header_file.csv,",",individual_contributions
+data/indiv18/by_date/itcont_2018_20170823_20171031.txt,|,data/indiv_header_file.csv,",",individual_contributions
+data/indiv18/by_date/itcont_2018_20170530_20170822.txt,|,data/indiv_header_file.csv,",",individual_contributions
+data/indiv18/by_date/itcont_2018_20070823_20170529.txt,|,data/oth_header_file.csv,",",committee_contributions
