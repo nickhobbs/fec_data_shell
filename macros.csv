@@ -1,0 +1,4 @@
+$is_cand_cmte,(CMTE_TP='S' or CMTE_TP='H' or CMTE_TP='P')
+$is_dem_cmte,CMTE_PTY_AFFILIATION='DEM'
+$dnc_id,'C00010603'
+$is_dnc,CMTE_ID='C00010603'

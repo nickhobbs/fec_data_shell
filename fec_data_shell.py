@@ -5,6 +5,7 @@ import sqlite3
 import sys
 import cmd
 import os
+import re
 
 DEFAULT_TABLE_DEFINITION_PATH = "table_definition.csv"
 TABLE_NAME = "FEC_data.db"
@@ -16,11 +17,17 @@ def main():
 class FECShell(cmd.Cmd):
     intro = "Welcome to the FEC data shell. Type help or ? to list commands"
     prompt = "(FEC query) "
+    macros = dict()
+
+    MACRO_PATTERN = "\$\w+"
+    MACRO_FILE_NAME = "macros.csv"
 
     def __init__(self, *args, **kwargs):
-        """Creates the connection to the database the shell will use."""
+        """Creates the connection to the database the shell will use and loads 
+        macros from disk."""
         cmd.Cmd.__init__(self, *args, **kwargs)
         self.connection = sqlite3.connect(TABLE_NAME)
+        self.load_macros()
 
     def do_init(self, arg):
         """Imports data defined in table_definition.csv'. Takes optional 
@@ -48,9 +55,24 @@ class FECShell(cmd.Cmd):
 
     def do_query(self, arg):
         "run a SQL query against the database"
+
         if len(arg) < 1:
             print "ERROR: query requires queryStr as the second argument"
             return
+
+        # Replace macros in the string
+        macros_in_query = re.findall(self.MACRO_PATTERN, arg)
+        for macro in macros_in_query:
+            if macro in self.macros:
+                arg = re.sub(self.MACRO_PATTERN,
+                             self.macros[macro],
+                             arg,
+                             count=1)
+            else:
+                print "SyntaxError: '" + macro + "' is not defined."
+                print "Use command 'macros' to list all defined macros"
+                return
+        
         print "running query: '" + arg + "'..."
         cursor = self.connection.cursor()
         try:
@@ -62,6 +84,53 @@ class FECShell(cmd.Cmd):
         for line in query_result:
             print str(line)
         print "\n"
+
+    def do_macro(self, arg):
+        """Creates a macro. First argumet is the macro name of form $<name>. 
+        Second argument is the string the macro will expand to"""
+
+        macro_name_results = re.findall(self.MACRO_PATTERN, arg)
+        if len(macro_name_results) < 1:
+            print "SyntaxError: first argument must be '$<macro_name>'"
+            return
+        macro_name = macro_name_results[0]
+        
+        macro_value_results = re.findall('".*"', arg)
+        if len(macro_value_results) < 1:
+            print 'SyntaxError: second argument must be a "" wrapped string'
+            return
+        macro_value = macro_value_results[0].strip('"')
+
+        self.macros[macro_name] = macro_value
+        self.save_macros()
+        print ("created macro with " + macro_name +
+               ' with value "' + macro_value + '"')
+
+    def do_macros(self, arg):
+        """Prints all current macros"""
+        print "there are", len(self.macros), "macros defined:"
+        for macro_name in self.macros:
+            print macro_name, '"' + self.macros[macro_name] + '"'
+
+    def save_macros(self):
+        """Saves self.macros to macros.csv file."""
+        with open(self.MACRO_FILE_NAME, "wb") as macro_file:
+            macro_writer = csv.writer(macro_file)
+            for macro_name in self.macros:
+                macro_writer.writerow([macro_name, self.macros[macro_name]])
+
+    def load_macros(self):
+        """Replaces self.macros with data from the macros.csv file. Each row is
+        formatted as $macro_name,macro_value"""
+        if not os.path.isfile(self.MACRO_FILE_NAME):
+            self.macros = dict()
+            self.save_macros()
+            return
+        with open(self.MACRO_FILE_NAME, "rb") as macro_file:
+            self.macros = dict()
+            macro_reader = csv.reader(macro_file)
+            for row in macro_reader:
+                self.macros[row[0]] = row[1]
 
     def validated_input(self, prompt, options):
         """Prompts the user until they respond with input that matches one of
