@@ -6,6 +6,9 @@ import sys
 import cmd
 import os
 import re
+import requests
+import zipfile
+import StringIO
 
 DEFAULT_TABLE_DEFINITION_PATH = "table_definition.csv"
 TABLE_NAME = "FEC_data.db"
@@ -111,6 +114,15 @@ class FECShell(cmd.Cmd):
         print "there are", len(self.macros), "macros defined:"
         for macro_name in self.macros:
             print macro_name, '"' + self.macros[macro_name] + '"'
+
+    def do_download(self, arg):
+        zip_file_url = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2016/oth16.zip"
+        print "downloading file..."
+        r = requests.get(zip_file_url, stream=True)
+        z = zipfile.ZipFile(StringIO.StringIO(r.content))
+        print "file downloaded."
+        z.extractall(".")
+        print "file extracted."
 
     def save_macros(self):
         """Saves self.macros to macros.csv file."""
