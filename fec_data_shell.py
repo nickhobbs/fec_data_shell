@@ -9,7 +9,6 @@ import re
 
 DEFAULT_TABLE_DEFINITION_PATH = "table_definition.csv"
 TABLE_NAME = "FEC_data.db"
-DATA_LAST_UPDATED = datetime.datetime(year=2018, month=3, day=25)
 
 def main():
     FECShell().cmdloop()
@@ -34,7 +33,7 @@ class FECShell(cmd.Cmd):
         argument that changes the table definition path.
         """
 
-        ## If the file exists, ask the user for premission to delete it.
+        # If the file exists, ask the user for premission to delete it.
         if os.path.isfile(TABLE_NAME):
             print "WARNING: database already exists. Continuing will delete it."
             continue_prompt = "Do you want to continue? (y or n)\n"
@@ -52,6 +51,7 @@ class FECShell(cmd.Cmd):
         else:
             path = DEFAULT_TABLE_DEFINITION_PATH
         init_database(self.connection, path)
+        self.send_notification("FEC Shell", "Database initialization complete.")
 
     def do_query(self, arg):
         "run a SQL query against the database"
@@ -152,6 +152,21 @@ class FECShell(cmd.Cmd):
         print invalid_response_str
         self.validated_input(prompt, options)
 
+    def send_notification(self, title, subtitle="", text=""):
+        """If the script is running on a Mac, send a notification."""
+        # Return if the operating system isn't OSX.
+        if sys.platform != "darwin":
+            return
+        
+        notification_str = "osascript -e 'display notification"
+        if text != "":
+            notification_str += ' "' + text + '"'
+        notification_str += ' with title "' + title + '"'
+        if (subtitle != ""):
+            notification_str += ' subtitle "' + subtitle + '"'
+        notification_str += "'"
+        os.system(notification_str)
+
 def init_database(connection, db_definition_path):
     """" Adds tables to a SQLite database from the specified file.
 
@@ -215,7 +230,7 @@ def add_data_to_table(data_file_path, data_file_delimiter, header_file_path,
         with open(data_file_path, "rb") as data_file:
             data_reader = csv.reader(data_file, delimiter = data_file_delimiter)
             for record in data_reader:
-                values = parse_record(record, field_types, DATA_LAST_UPDATED)
+                values = parse_record(record, field_types)
                 if values == None:
                     continue
                 try:
@@ -246,9 +261,8 @@ def create_table(table_name, field_names, field_types, database_cursor):
     create_table_str = create_table_str.rstrip(", ") + ");"
     database_cursor.execute(create_table_str)
     database_cursor.connection.commit()
-    
 
-def parse_record(record, field_types, max_date):
+def parse_record(record, field_types):
     """Converts a csv record into the proper values.
 
     Args:
@@ -258,8 +272,8 @@ def parse_record(record, field_types, max_date):
         max_date: datetime, if date fields are created after max_date, None will
             be returned
     Return:
-        Returns a list with proper python values (str, int, or datetime) unless
-        a date value exceeds max_date. Then, None is returned."""
+        Returns a list with proper python values (str, int, or datetime).
+    """
     
     values = []
     field_number = 0
@@ -271,9 +285,11 @@ def parse_record(record, field_types, max_date):
         elif value_type == "integer":
             values.append(int(value))
         elif value_type == "date":
-            date = datetime.datetime.strptime(value, "%m%d%Y")
-            if date > max_date:
-                return None
+            try:
+                date = datetime.datetime.strptime(value, "%m%d%Y")
+            except ValueError:
+                values.append(None)
+                continue
             values.append(date)
     return values
 

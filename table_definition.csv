@@ -4,5 +4,6 @@ data/indiv18/by_date/itcont_2018_20171229_52010120.txt,|,data/indiv_header_file.
 data/indiv18/by_date/itcont_2018_20171101_20171228.txt,|,data/indiv_header_file.csv,",",individual_contributions
 data/indiv18/by_date/itcont_2018_20170823_20171031.txt,|,data/indiv_header_file.csv,",",individual_contributions
 data/indiv18/by_date/itcont_2018_20170530_20170822.txt,|,data/indiv_header_file.csv,",",individual_contributions
-data/indiv18/by_date/itcont_2018_20070823_20170529.txt,|,data/oth_header_file.csv,",",committee_contributions
+data/indiv18/by_date/itcont_2018_invalid_dates.txt,|,data/indiv_header_file.csv,",",individual_contributions
+data/oth18/itoth.txt,|,data/oth_header_file.csv,",",committee_contributions
 data/cm.txt,|,data/cm_header_file.csv,",",committees
