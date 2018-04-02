@@ -1,4 +1,5 @@
 $is_cand_cmte,(CMTE_TP='S' or CMTE_TP='H' or CMTE_TP='P')
 $is_dem_cmte,CMTE_PTY_AFFILIATION='DEM'
 $dnc_id,'C00010603'
+$is_2016_cycle,(TRANSACTION_DT < date('2017-01-01') and TRANSACTION_DT > date('2014-12-31'))
 $is_dnc,CMTE_ID='C00010603'

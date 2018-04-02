@@ -21,6 +21,8 @@ class FECShell(cmd.Cmd):
     prompt = "(FEC query) "
     macros = dict()
 
+    DOWNLOAD_DEFINITION_PATH = "download_definition.csv"
+    DOWNLOAD_DEST_PATH = "./data"
     MACRO_PATTERN = "\$\w+"
     MACRO_FILE_NAME = "macros.csv"
 
@@ -116,13 +118,43 @@ class FECShell(cmd.Cmd):
             print macro_name, '"' + self.macros[macro_name] + '"'
 
     def do_download(self, arg):
-        zip_file_url = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2016/oth16.zip"
-        print "downloading file..."
-        r = requests.get(zip_file_url, stream=True)
-        z = zipfile.ZipFile(StringIO.StringIO(r.content))
-        print "file downloaded."
-        z.extractall(".")
-        print "file extracted."
+        """Downloads files specified in download_definition.csv. Takes two 
+        optional arguments. First is a path to override the output loation 
+        (./data by default). The second is a path to override the download 
+        definition."""
+
+        # Parse the override arguments.
+        args = arg.split(" ")
+        base_path = self.DOWNLOAD_DEST_PATH
+        definition_path = self.DOWNLOAD_DEFINITION_PATH
+        if len(args[0]) >= 1:
+            base_path = args[0]
+        if len(args) == 2:
+            definition_path = args[1]
+        print "using", definition_path, "as download definition"
+        print "download output set to", base_path
+        
+        with open(self.DOWNLOAD_DEFINITION_PATH, "rb") as definition_file:
+            definition_reader = csv.DictReader(definition_file)
+            for entry in definition_reader:
+                zip_file_url = entry["file_url"]
+                extraction_location = os.path.join(base_path,
+                                                   entry["file_destination"])
+                extracted_file_name = entry["file_name"]
+            
+                print "Downloading", zip_file_url
+                r = requests.get(zip_file_url, stream=True)
+                z = zipfile.ZipFile(StringIO.StringIO(r.content))
+                print "File downloaded. Extracting..."
+                z.extractall(extraction_location)
+                if len(extracted_file_name) > 0:
+                    current_path = os.path.join(extraction_location,
+                                                z.infolist()[0].filename)
+                    new_path = os.path.join(extraction_location,
+                                            extracted_file_name)
+                    os.rename(current_path, new_path)
+                print "File extracted."
+        self.send_notification("FEC Shell", "Download finished.")
 
     def save_macros(self):
         """Saves self.macros to macros.csv file."""
@@ -176,6 +208,7 @@ class FECShell(cmd.Cmd):
         notification_str += ' with title "' + title + '"'
         if (subtitle != ""):
             notification_str += ' subtitle "' + subtitle + '"'
+        notification_str += ' sound name "Purr"'
         notification_str += "'"
         os.system(notification_str)
 
@@ -239,18 +272,34 @@ def add_data_to_table(data_file_path, data_file_delimiter, header_file_path,
         insert_str += ("?," * len(field_types))
         insert_str = insert_str.rstrip(",") + ")"
 
+        failure_count = 0
         with open(data_file_path, "rb") as data_file:
-            data_reader = csv.reader(data_file, delimiter = data_file_delimiter)
+            data_reader = csv.reader(utf_8_encoder(data_file),
+                                     delimiter = data_file_delimiter)
             for record in data_reader:
-                values = parse_record(record, field_types)
+                try:
+                    values = parse_record(record, field_types)
+                except ValueError as e:
+                    print "parse failed"
+                    print "with record:", record
+                    print "on line number:", data_reader.line_num
+                    print "ERROR: " + str(e)
+                    failure_count += 1
+                    print "failure number", failure_count
+                    continue
                 if values == None:
                     continue
                 try:
                     database_cursor.execute(insert_str, values)
-                except sqlite3.OperationalError as e:
+                except (sqlite3.OperationalError, sqlite3.ProgrammingError) as e:
                     print "query '" + insert_str + "' failed."
+                    print "with record:", record
+                    print "and values:", values
+                    print "on line number:", data_reader.line_num
                     print "ERROR: " + str(e)
-                    raise e
+                    failure_count += 1
+                    print "failure number", failure_count
+                    continue
             database_cursor.connection.commit()
             print "added data"
 
@@ -293,16 +342,19 @@ def parse_record(record, field_types):
         value_type = field_types[field_number]
         field_number += 1
         if value_type == "text":
-            values.append(value)
+            values.append(unicode(value))
         elif value_type == "integer":
-            values.append(int(value))
+            try:
+                values.append(int(value))
+            except ValueError:
+                values.append(None)
         elif value_type == "date":
             try:
                 date = datetime.datetime.strptime(value, "%m%d%Y")
             except ValueError:
                 values.append(None)
-                continue
-            values.append(date)
+            else:
+                values.append(date)
     return values
 
 if __name__ == "__main__":
