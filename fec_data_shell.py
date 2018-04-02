@@ -31,6 +31,7 @@ class FECShell(cmd.Cmd):
         macros from disk."""
         cmd.Cmd.__init__(self, *args, **kwargs)
         self.connection = sqlite3.connect(TABLE_NAME)
+        self.cursor = self.connection.cursor()
         self.load_macros()
 
     def do_init(self, arg):
@@ -79,13 +80,12 @@ class FECShell(cmd.Cmd):
                 return
         
         print "running query: '" + arg + "'..."
-        cursor = self.connection.cursor()
         try:
-            cursor.execute(arg)
+            self.cursor.execute(arg)
         except sqlite3.OperationalError as error:
             print "ERROR: " + str(error)
             return
-        query_result = cursor.fetchall()
+        query_result = self.cursor.fetchall()
         for line in query_result:
             print str(line)
         print "\n"
@@ -155,6 +155,20 @@ class FECShell(cmd.Cmd):
                     os.rename(current_path, new_path)
                 print "File extracted."
         self.send_notification("FEC Shell", "Download finished.")
+
+    def do_tables(self, arg):
+        """prints the name, fields, and types of all defined tables"""
+        query_str = "select sql from sqlite_master where type ='table'"
+        self.cursor.execute(query_str)
+        results = self.cursor.fetchall()
+        if len(results) < 1:
+            print "No tables currently defined."
+        for result in results:
+            name_results = re.search("(\s+TABLE\s+)(\w+)", result[0]).groups()
+            print "table:", name_results[1]
+            fields_results = re.search("(\()(.*)(\))", result[0]).groups()
+            for line in fields_results[1].split(','):
+                print "    " + line.strip()
 
     def save_macros(self):
         """Saves self.macros to macros.csv file."""
