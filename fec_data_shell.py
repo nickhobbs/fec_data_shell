@@ -10,6 +10,11 @@ import requests
 import zipfile
 import StringIO
 
+try:
+    import readline
+except ImportError:
+    readline = None
+
 DEFAULT_TABLE_DEFINITION_PATH = "table_definition.csv"
 TABLE_NAME = "FEC_data.db"
 
@@ -25,6 +30,8 @@ class FECShell(cmd.Cmd):
     DOWNLOAD_DEST_PATH = "./data"
     MACRO_PATTERN = "\$\w+"
     MACRO_FILE_NAME = "macros.csv"
+    HISTORY_FILE_PATH = ".fec_shell_history"
+    HISTORY_LENGTH = 1000
 
     def __init__(self, *args, **kwargs):
         """Creates the connection to the database the shell will use and loads 
@@ -225,6 +232,18 @@ class FECShell(cmd.Cmd):
         notification_str += ' sound name "Purr"'
         notification_str += "'"
         os.system(notification_str)
+
+    def postcmd(self, stop, line):
+        """Saves command history to disk."""
+        if readline:
+            readline.set_history_length(self.HISTORY_LENGTH)
+            readline.write_history_file(self.HISTORY_FILE_PATH)
+
+    def preloop(self):
+        """Loads previous command history from a file if it exists."""
+        if readline and os.path.exists(self.HISTORY_FILE_PATH):
+            readline.read_history_file(self.HISTORY_FILE_PATH)
+    
 
 def init_database(connection, db_definition_path):
     """" Adds tables to a SQLite database from the specified file.

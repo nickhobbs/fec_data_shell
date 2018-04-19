@@ -1,4 +1,6 @@
 *~
 .DS_STORE
 *.db
+.fec_shell_history
+macros.csv
 /data
