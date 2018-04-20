@@ -93,9 +93,7 @@ class FECShell(cmd.Cmd):
             print "ERROR: " + str(error)
             return
         query_result = self.cursor.fetchall()
-        for line in query_result:
-            print str(line)
-        print "\n"
+        self.print_table(query_result)
 
     def do_macro(self, arg):
         """Creates a macro. First argumet is the macro name of form $<name>. 
@@ -121,8 +119,8 @@ class FECShell(cmd.Cmd):
     def do_macros(self, arg):
         """Prints all current macros"""
         print "there are", len(self.macros), "macros defined:"
-        for macro_name in self.macros:
-            print macro_name, '"' + self.macros[macro_name] + '"'
+        if len(self.macros) > 0:
+            self.print_table(zip(self.macros.keys(), self.macros.values()))
 
     def do_download(self, arg):
         """Downloads files specified in download_definition.csv. Takes two 
@@ -216,6 +214,42 @@ class FECShell(cmd.Cmd):
         invalid_response_str = invalid_response_str.rstrip(", ") + "."
         print invalid_response_str
         self.validated_input(prompt, options)
+
+    def print_table(self, data, start_padding = 1, end_padding = 2):
+        # Find the longest string in each column so we know how much to pad.
+        max_column_widths = []
+        for row in data:
+            column_number = 0
+            for column in row:
+                column_char_count = len(str(column))
+                if column_number + 1 > len(max_column_widths):
+                    max_column_widths.append(column_char_count)
+                elif max_column_widths[column_number] < column_char_count:
+                    max_column_widths[column_number] = column_char_count
+                column_number += 1
+
+        # Build a horizontal divider string with the appropriate column widths.
+        divider = []
+        for column_width in max_column_widths:
+            divider.append("-" * (column_width + start_padding + end_padding))
+        divider_str = "+" + "+".join(divider) + "+"
+
+        # Print a divider, then all rows, then a final divider.
+        print divider_str
+        for row in data:
+            column_number = 0
+            sys.stdout.write("|")
+            for column in row:
+                sys.stdout.write(" " * start_padding)
+                column_width = max_column_widths[column_number] + end_padding
+                column_str = str(column)
+                str_width = len(column_str)
+                sys.stdout.write(column_str)
+                sys.stdout.write(" " * (column_width - str_width) + "|")
+                column_number += 1
+            sys.stdout.write("\n")
+        print divider_str
+        print ""
 
     def send_notification(self, title, subtitle="", text=""):
         """If the script is running on a Mac, send a notification."""
