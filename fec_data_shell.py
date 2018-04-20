@@ -267,11 +267,12 @@ class FECShell(cmd.Cmd):
         notification_str += "'"
         os.system(notification_str)
 
-    def postcmd(self, stop, line):
+    def precmd(self, line):
         """Saves command history to disk."""
         if readline:
             readline.set_history_length(self.HISTORY_LENGTH)
             readline.write_history_file(self.HISTORY_FILE_PATH)
+        return line
 
     def preloop(self):
         """Loads previous command history from a file if it exists."""
